@@ -8,6 +8,8 @@ import jakarta.json.JsonStructure;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
+import java.lang.reflect.Method;
+
 /**
  * Send instances graph data to make object diagrams
  *
@@ -22,9 +24,17 @@ public class Instances {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public JsonStructure getInstanceGraphInfo(@QueryParam("builderclassname") String builderClassname) {
-        InstanceGraph1 builder = new InstanceGraph1();    // TODO change this line to use the query parameter, and generate dynamically the builder
-        Object instanceGraph = builder.initInstanceGraph();   // TODO change this line to avoid calling initInstanceGraph() directly
-        InstancesAnalyzer analyzer = new InstancesAnalyzer(instanceGraph);
-        return analyzer.getFullInfo();
+        if (builderClassname == null || builderClassname.isEmpty()) {
+            throw new WebApplicationException(404);
+        }
+        try {
+            Class<?> builderClass = Class.forName("be.vinci.instances." + builderClassname);
+            Method initInstanceGraph = builderClass.getMethod("initInstanceGraph");
+            Object instanceGraph = initInstanceGraph.invoke(builderClass.getDeclaredConstructor().newInstance());
+            InstancesAnalyzer analyzer = new InstancesAnalyzer(instanceGraph);
+            return analyzer.getFullInfo();
+        } catch (Exception e) {
+            throw new InternalError();
+        }
     }
 }
